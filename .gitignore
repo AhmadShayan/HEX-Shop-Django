@@ -5,7 +5,11 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media
+media/
+.env
+staticfiles/
+generate_report.py
+*.pdf
 
 
 *.py[cod]
@@ -38,7 +42,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-=htmlcov/
+htmlcov/
 .tox/
 .nox/
 .coverage

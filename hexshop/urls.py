@@ -26,7 +26,9 @@ urlpatterns = [
     path('store/', include('store.urls')),
     path('carts/', include('carts.urls')),
     path('accounts/', include('accounts.urls')),
-    
-    #Order
     path('orders/', include('orders.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+# Serve media files in development (WhiteNoise handles static)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
