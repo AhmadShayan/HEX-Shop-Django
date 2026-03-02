@@ -1,103 +1,145 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard — HEX Shop{% endblock %}
 
 {% block content %}
-
-<!-- ========================= SECTION CONTENT ========================= -->
-<section class="section-conten padding-y bg">
-
-    {% include 'includes/alerts.html' %}
-
+<section class="section-content padding-y bg">
     <div class="container">
         <div class="row">
-        <aside class="col-md-3">
-            <!--   SIDEBAR   -->
-            <ul class="list-group">
-                <a class="list-group-item active" href="#"> My order history </a>
-                <a class="list-group-item" href="#"> Transactions </a>
-                <a class="list-group-item" href="#"> Return and refunds </a>
-                <a class="list-group-item" href="#">Settings </a>
-                <a class="list-group-item" href="#"> My Selling Items </a>
-                <a class="list-group-item" href="#"> Received orders </a>
-            </ul>
-            <br>
-            <a class="btn btn-light btn-block" href="{% url 'logout' %}"> <i class="fa fa-power-off"></i> <span class="text">Log out</span> </a> 
-            <!--   SIDEBAR .//END   -->
-        </aside>
-        <main class="col-md-9">
-            <article class="card">
-            <header class="card-header">
-                <strong class="d-inline-block mr-3">Order ID: 6123456789</strong>
-                <span>Order Date: 30-05-2023</span>
-            </header>
-            <div class="card-body">
-                <div class="row"> 
-                    <div class="col-md-8">
-                        <h6 class="text-muted">Delivery to</h6>
-                        <p>
-                        Ahmad Shayan<br>  
-                        Phone No. 923047280822<br>
-                        Email: shayan@hexshop.com <br>
-                        Location: Lahore, Punjab <br> 
-                        Pakistan
-                         </p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted">Payment</h6>
-                        <span class="text-success">
-                            <i class="fab fa-lg fa-cc-visa"></i>
-                            Visa  **** 4216  
-                        </span>
-                        <p>Subtotal: Rs.356 <br>
-                         Shipping fee:  Rs.56 <br> 
-                         <span class="b">Total:  Rs.456 </span>
-                        </p>
-                    </div>
-                </div> <!-- row.// -->
-            </div> <!-- card-body .// -->
-            <div class="table-responsive">
-            <table class="table table-hover">
-                <tr>
-                    <td width="65">
-                        <img src="../images/items/1.jpg" class="img-xs border">
-                    </td>
-                    <td> 
-                        <p class="title mb-0">Product name goes here </p>
-                        <var class="price text-muted">PKR 145</var>
-                    </td>
-                    <td> Seller <br> HEX </td>
-                    <td width="250"> <a href="#" class="btn btn-outline-primary">Track order</a> <a href="#" class="btn btn-light"> Details </a> </td>
-                </tr>
-                <tr>
-                    <td>
-                        <img src="../images/items/2.jpg" class="img-xs border">
-                    </td>
-                    <td> 
-                        <p class="title mb-0">Another name goes here </p>
-                        <var class="price text-muted">PKR 15</var>
-                    </td>
-                    <td> Seller <br> HEX Shop </td>
-                    <td> <a href="#" class="btn btn-outline-primary">Track order</a> <a href="#" class="btn btn-light"> Details </a> </td>
-                </tr>
-                <tr>
-                    <td>
-                        <img src="../images/items/3.jpg" class="img-xs border">
-                    </td>
-                    <td> 
-                        <p class="title mb-0">The name of the product  goes here </p>
-                        <var class="price text-muted">PKR 145</var>
-                    </td>
-                    <td> Seller <br> HEX </td>
-                    <td> <a href="#" class="btn btn-outline-primary">Track order</a> <a href="#" class="btn btn-light"> Details </a> </td>
-                </tr>
-            </table>
-            </div> <!-- table-responsive .end// -->
-            </article> <!-- order-group.// --> 
-        </main>
-    </div> <!-- row.// -->
-    </div>
-    
-    
-    </section>
-    <!-- ========================= SECTION CONTENT END// ========================= -->
 
+            <!-- ── Sidebar ── -->
+            <aside class="col-md-3 mb-4">
+                <div class="card p-3 text-center">
+                    <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center mx-auto mb-2"
+                         style="width:70px; height:70px;">
+                        <span class="text-white font-weight-bold" style="font-size:26px;">
+                            {{ request.user.first_name|first|upper }}
+                        </span>
+                    </div>
+                    <h6 class="mb-0">{{ request.user.first_name }} {{ request.user.last_name }}</h6>
+                    <small class="text-muted">{{ request.user.email }}</small>
+                </div>
+                <div class="card mt-3">
+                    <ul class="list-group list-group-flush">
+                        <a class="list-group-item list-group-item-action active" href="{% url 'dashboard' %}">
+                            <i class="fa fa-shopping-bag mr-2"></i> My Orders
+                        </a>
+                        <a class="list-group-item list-group-item-action" href="{% url 'store' %}">
+                            <i class="fa fa-store mr-2"></i> Browse Store
+                        </a>
+                        <a class="list-group-item list-group-item-action" href="{% url 'cart' %}">
+                            <i class="fa fa-shopping-cart mr-2"></i> My Cart
+                        </a>
+                        <a class="list-group-item list-group-item-action text-danger" href="{% url 'logout' %}">
+                            <i class="fa fa-power-off mr-2"></i> Log Out
+                        </a>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- ── Main ── -->
+            <main class="col-md-9">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Order History</h4>
+                    <span class="badge badge-primary badge-pill px-3" style="font-size:13px;">
+                        {{ order_count }} order{{ order_count|pluralize }}
+                    </span>
+                </div>
+
+                {% if orders %}
+                    {% for order in orders %}
+                    <article class="card mb-3">
+                        <header class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong class="mr-3"># {{ order.order_number }}</strong>
+                                <span class="text-muted small">{{ order.created_at|date:"d M Y" }}</span>
+                            </div>
+                            <span class="badge
+                                {% if order.status == 'New' %}badge-info
+                                {% elif order.status == 'Accepted' %}badge-primary
+                                {% elif order.status == 'Completed' %}badge-success
+                                {% else %}badge-danger{% endif %} px-2 py-1">
+                                {{ order.status }}
+                            </span>
+                        </header>
+                        <div class="card-body pb-0">
+                            <div class="row">
+                                <div class="col-sm-6 mb-3">
+                                    <h6 class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.5px;">
+                                        Delivery Address
+                                    </h6>
+                                    <p class="mb-0 font-weight-bold">{{ order.full_name }}</p>
+                                    <p class="mb-0 small text-muted">{{ order.full_address }}</p>
+                                    <p class="mb-0 small text-muted">{{ order.city }}, {{ order.state }}</p>
+                                    <p class="mb-0 small text-muted">{{ order.country }}</p>
+                                    <p class="mb-0 small text-muted">{{ order.phone }}</p>
+                                </div>
+                                <div class="col-sm-6 mb-3">
+                                    <h6 class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.5px;">
+                                        Payment Summary
+                                    </h6>
+                                    {% if order.payment %}
+                                    <p class="mb-0 small">Method: {{ order.payment.payment_method }}</p>
+                                    <p class="mb-0 small text-muted">Status: {{ order.payment.status }}</p>
+                                    {% endif %}
+                                    <p class="mb-0 mt-1">
+                                        <strong class="text-primary">Total: Rs. {{ order.order_total|floatformat:0 }}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% with order.orderproduct_set.all as items %}
+                        {% if items %}
+                        <div class="table-responsive px-3 pb-3">
+                            <table class="table table-sm mb-0 border-top pt-3">
+                                <thead class="text-muted small text-uppercase">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-right">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ item.product.get_url }}" class="text-dark font-weight-bold">
+                                                {{ item.product.product_name }}
+                                            </a>
+                                            <br>
+                                            {% for v in item.variation.all %}
+                                            <small class="text-muted">{{ v.variation_category|capfirst }}: {{ v.variation_value|capfirst }}</small>
+                                            {% endfor %}
+                                        </td>
+                                        <td class="text-center">{{ item.quantity }}</td>
+                                        <td class="text-right">Rs. {{ item.product_price|floatformat:0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    </article>
+                    {% endfor %}
+
+                {% else %}
+                    <div class="card text-center py-5">
+                        <div class="card-body">
+                            <i class="fa fa-shopping-bag fa-4x text-muted mb-3 d-block"></i>
+                            <h5>No Orders Yet</h5>
+                            <p class="text-muted">You haven't placed any orders. Start shopping!</p>
+                            <a href="{% url 'store' %}" class="btn btn-primary">
+                                <i class="fa fa-store mr-1"></i> Browse Store
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </main>
+
+        </div>
+    </div>
+</section>
 {% endblock %}

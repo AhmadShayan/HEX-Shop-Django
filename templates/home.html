@@ -1,53 +1,82 @@
-
-
 {% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
 
-<body>
-<!-- ========================= SECTION MAIN ========================= -->
+<!-- ========================= HERO BANNER ========================= -->
 <section class="section-intro padding-y-sm">
 <div class="container">
-
-<div class="intro-banner-wrap">
-	<img src="{% static 'images/banners/cover.jpg' %}" class="img-fluid rounded">
+    <div class="intro-banner-wrap">
+        <img src="{% static 'images/banners/cover.jpg' %}" class="img-fluid rounded" alt="HEX Shop Banner" style="width:100%; object-fit:cover; max-height:420px;">
+    </div>
 </div>
-
-</div> <!-- container //  -->
 </section>
-<!-- ========================= SECTION MAIN END// ========================= -->
 
-<!-- ========================= SECTION  ========================= -->
-<section class="section-name padding-y-sm">
+<!-- ========================= FEATURES STRIP ========================= -->
+<section class="padding-y-sm bg-light border-top border-bottom">
+<div class="container">
+    <div class="row text-center py-3">
+        <div class="col-md-3 col-6 mb-3 mb-md-0">
+            <i class="fa fa-truck fa-2x text-primary mb-2 d-block"></i>
+            <strong class="d-block">Free Delivery</strong>
+            <small class="text-muted">On orders over Rs. 2,000</small>
+        </div>
+        <div class="col-md-3 col-6 mb-3 mb-md-0">
+            <i class="fa fa-undo fa-2x text-primary mb-2 d-block"></i>
+            <strong class="d-block">Easy Returns</strong>
+            <small class="text-muted">7-day return policy</small>
+        </div>
+        <div class="col-md-3 col-6">
+            <i class="fa fa-lock fa-2x text-primary mb-2 d-block"></i>
+            <strong class="d-block">Secure Payment</strong>
+            <small class="text-muted">Cash on Delivery available</small>
+        </div>
+        <div class="col-md-3 col-6">
+            <i class="fa fa-headset fa-2x text-primary mb-2 d-block"></i>
+            <strong class="d-block">24/7 Support</strong>
+            <small class="text-muted">Always here to help</small>
+        </div>
+    </div>
+</div>
+</section>
+
+<!-- ========================= POPULAR PRODUCTS ========================= -->
+<section class="section-name padding-y">
 <div class="container">
 
-<header class="section-heading">
-	<a href="{% url 'store' %}" class="btn btn-outline-primary float-right">See all</a>
-	<h3 class="section-title">Popular products</h3>
-</header><!-- sect-heading -->
+<header class="section-heading mb-4">
+    <a href="{% url 'store' %}" class="btn btn-outline-primary float-right">See all</a>
+    <h3 class="section-title">Popular Products</h3>
+    <hr>
+</header>
 
-	
 <div class="row">
-	{% for product in products %}
-	<div class="col-md-3">
-		<div class="card card-product-grid">
-			<a href="{{product.get_url}}" class="img-wrap"> <img src="{{ product.image.url }}"> </a>
-			<figcaption class="info-wrap">
-				<a href="{{product.get_url}}" class="title">{{product.product_name}}</a>
-				<div class="price mt-1">Rs. {{ product.price }} </div> <!-- price-wrap.// -->
-			</figcaption>
-		</div>
-	</div> <!-- col.// -->
-	
-	{% endfor %}
-</div> <!-- row.// -->
+    {% for product in products %}
+    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+        <div class="card card-product-grid h-100 shadow-sm" style="transition: transform 0.2s; border:none;">
+            <a href="{{product.get_url}}" class="img-wrap">
+                <img src="{{ product.image.url }}" alt="{{ product.product_name }}"
+                     style="object-fit:cover; height:210px; width:100%; border-radius:4px 4px 0 0;">
+            </a>
+            <figcaption class="info-wrap p-3 d-flex flex-column">
+                <a href="{{product.get_url}}" class="title font-weight-bold text-dark">{{product.product_name}}</a>
+                <div class="price mt-1 text-primary font-weight-bold">Rs. {{ product.price }}</div>
+                <a href="{{ product.get_url }}" class="btn btn-sm btn-primary btn-block mt-auto mt-2">
+                    <i class="fa fa-eye mr-1"></i> View Details
+                </a>
+            </figcaption>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <i class="fa fa-box-open fa-3x text-muted mb-3 d-block"></i>
+        <p class="text-muted">No products available yet. Check back soon!</p>
+        <a href="{% url 'store' %}" class="btn btn-primary">Browse Store</a>
+    </div>
+    {% endfor %}
+</div>
 
-</div><!-- container // -->
+</div>
 </section>
-<!-- ========================= SECTION  END// ========================= -->
-
-</body>
-</html>
 
 {% endblock %}

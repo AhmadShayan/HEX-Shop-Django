@@ -1,7 +1,6 @@
 from .forms import RegistrationForm
 from .models import Account
 from carts.views import _cart_id
-from accounts.models import Account
 from carts.models import Cart, CartItem
 
 from django.shortcuts import render, redirect
@@ -15,10 +14,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.utils.encoding import force_bytes
-
-from django.http import HttpResponse
-
-import requests
+from urllib.parse import urlparse, parse_qs
 
 
 
@@ -101,25 +97,19 @@ def login(request):
                                 item.user = user
                                 item.save()                
                     
-                    # for item in cart_item:
-                    #     item.user = user
-                    #     item.save()
-            except:
+            except Cart.DoesNotExist:
                 pass
             auth.login(request, user)
             messages.success(request, 'Logged In Successfully')
-            url = request.META.get('HTTP_REFERER')
+            url = request.META.get('HTTP_REFERER', '')
             try:
-                query = requests.utils.urlparse(url).query
-                
-                # next=/cart/checkout/
-                params = dict(x.split('=') for x in query.split('&'))
+                parsed = urlparse(url)
+                params = parse_qs(parsed.query)
                 if 'next' in params:
-                    nextPage = params['next']
-                    return redirect(nextPage) 
-                
-            except:
-                return redirect('dashboard')
+                    return redirect(params['next'][0])
+            except Exception:
+                pass
+            return redirect('dashboard')
         else:
             messages.error(request, 'Invalid Credentials')
             return redirect('login')
@@ -147,9 +137,16 @@ def activate(request, uidb64, token):
         messages.error(request, 'Invalid Activation Link')
         return redirect('register')
     
-@login_required(login_url = 'login')
+@login_required(login_url='login')
 def dashboard(request):
-    return render(request, 'accounts/dashboard.html')
+    from orders.models import Order, OrderProduct
+    orders = Order.objects.filter(user=request.user, is_ordered=True).order_by('-created_at')
+    order_count = orders.count()
+    context = {
+        'orders': orders,
+        'order_count': order_count,
+    }
+    return render(request, 'accounts/dashboard.html', context)
 
 def forgotPassword(request):
     if request.method == 'POST':

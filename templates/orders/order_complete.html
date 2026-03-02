@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order Confirmed — HEX Shop{% endblock %}
+
+{% block content %}
+<section class="section-content padding-y bg">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 text-center">
+                <div class="card p-5">
+                    <div class="mb-4">
+                        <span class="bg-success rounded-circle d-inline-flex align-items-center justify-content-center"
+                              style="width:90px; height:90px;">
+                            <i class="fa fa-check fa-3x text-white"></i>
+                        </span>
+                    </div>
+                    <h3 class="font-weight-bold text-success mb-2">Order Placed Successfully!</h3>
+                    <p class="text-muted mb-1">
+                        Thank you, <strong>{{ order.first_name }}</strong>! Your order has been received.
+                    </p>
+                    <p class="text-muted mb-4">
+                        Order Number: <strong class="text-dark">#{{ order.order_number }}</strong>
+                    </p>
+
+                    <div class="alert alert-light text-left mb-4">
+                        <p class="mb-1"><i class="fa fa-hand-holding-usd mr-2 text-primary"></i>
+                            <strong>Payment:</strong> Cash on Delivery
+                        </p>
+                        <p class="mb-1"><i class="fa fa-map-marker-alt mr-2 text-primary"></i>
+                            <strong>Delivery to:</strong> {{ order.full_address }}, {{ order.city }}, {{ order.country }}
+                        </p>
+                        <p class="mb-0"><i class="fa fa-phone mr-2 text-primary"></i>
+                            We will call <strong>{{ order.phone }}</strong> to confirm delivery.
+                        </p>
+                    </div>
+
+                    <div class="d-flex justify-content-center">
+                        <a href="{% url 'dashboard' %}" class="btn btn-primary mr-2">
+                            <i class="fa fa-list mr-1"></i> View My Orders
+                        </a>
+                        <a href="{% url 'store' %}" class="btn btn-outline-primary">
+                            <i class="fa fa-store mr-1"></i> Continue Shopping
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
