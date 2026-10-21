@@ -12,6 +12,32 @@ def _cart_id(request):
         cart = request.session.create()
     return cart
 
+def merge_session_cart(session_cart_id, user):
+    """Move what a visitor put in the basket before signing in into the account basket.
+
+    A line that matches one the account already has (same product, same variations) adds its
+    quantity to it and is removed. Any other line is handed to the account as it is.
+    """
+    try:
+        cart = Cart.objects.get(cart_id=session_cart_id)
+    except Cart.DoesNotExist:
+        return
+    for visitor_item in CartItem.objects.filter(cart=cart, user__isnull=True):
+        wanted = set(visitor_item.variations.values_list('id', flat=True))
+        match = None
+        for owned in CartItem.objects.filter(user=user, product=visitor_item.product):
+            if set(owned.variations.values_list('id', flat=True)) == wanted:
+                match = owned
+                break
+        if match:
+            match.quantity += visitor_item.quantity
+            match.save()
+            visitor_item.delete()
+        else:
+            visitor_item.user = user
+            visitor_item.save()
+
+
 def add_cart(request, product_id):
     current_user = request.user
     product = Product.objects.get(id=product_id)
@@ -130,7 +156,7 @@ def add_cart(request, product_id):
 
 def remove_cart(request, product_id, cart_item_id):
     
-    product = Product.objects.get(id=product_id)
+    product = get_object_or_404(Product, id=product_id)
     
     try:
         if request.user.is_authenticated:
@@ -143,7 +169,7 @@ def remove_cart(request, product_id, cart_item_id):
             cart_item.save()
         else:
             cart_item.delete()
-    except CartItem.DoesNotExist:
+    except (CartItem.DoesNotExist, Cart.DoesNotExist):
         pass
     
     return redirect('cart')
@@ -152,10 +178,10 @@ def remove_cart_item(request, product_id, cart_item_id):
     
     product = get_object_or_404(Product, id=product_id)
     if request.user.is_authenticated:
-        cart_item = CartItem.objects.get(product=product, user=request.user, id=cart_item_id)
+        cart_item = get_object_or_404(CartItem, product=product, user=request.user, id=cart_item_id)
     else:
-        cart = Cart.objects.get(cart_id=_cart_id(request))
-        cart_item = CartItem.objects.get(product=product, cart=cart, id=cart_item_id)
+        cart = get_object_or_404(Cart, cart_id=_cart_id(request))
+        cart_item = get_object_or_404(CartItem, product=product, cart=cart, id=cart_item_id)
     cart_item.delete()
     return redirect('cart')
 

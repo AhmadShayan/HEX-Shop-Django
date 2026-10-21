@@ -1,10 +1,21 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.db.models import F
 from carts.models import CartItem
+from store.models import Product
 from .forms import OrderForm
 from .models import Order, Payment, OrderProduct
 import datetime
+
+
+class OutOfStock(Exception):
+    """A line in the basket asks for more than the shop has left."""
+
+    def __init__(self, product):
+        super().__init__(product.product_name)
+        self.product = product
 
 
 @login_required(login_url='login')
@@ -16,7 +27,7 @@ def payments(request):
 def place_order(request, total=0, quantity=0):
     current_user = request.user
 
-    cart_items = CartItem.objects.filter(user=current_user)
+    cart_items = CartItem.objects.filter(user=current_user, is_active=True)
     if cart_items.count() == 0:
         return redirect('store')   # Fixed typo: 'sotre' -> 'store'
 
@@ -69,62 +80,67 @@ def place_order(request, total=0, quantity=0):
 @login_required(login_url='login')
 def confirm_order(request):
     """
-    Cash-on-Delivery: marks the order complete, saves OrderProduct records, clears cart.
+    Cash-on-Delivery: marks the order complete, saves OrderProduct records, reduces stock, clears the basket.
+    Everything happens in one transaction: if any line cannot be supplied, nothing is written.
     """
-    if request.method == 'POST':
-        order_number = request.POST.get('order_number')
-        current_user = request.user
+    if request.method != 'POST':
+        return redirect('store')
 
-        try:
-            order = Order.objects.get(order_number=order_number, user=current_user, is_ordered=False)
-        except Order.DoesNotExist:
-            messages.error(request, 'Order not found.')
-            return redirect('store')
+    order_number = request.POST.get('order_number')
+    current_user = request.user
 
-        # Create a COD payment record
-        payment = Payment.objects.create(
-            user=current_user,
-            payment_id='COD-' + order_number,
-            payment_method='Cash on Delivery',
-            amount_paid=str(order.order_total),
-            status='Pending',
-        )
+    try:
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(
+                    order_number=order_number, user=current_user, is_ordered=False)
+            except Order.DoesNotExist:
+                messages.error(request, 'Order not found.')
+                return redirect('store')
 
-        # Link payment, mark order as placed
-        order.payment = payment
-        order.is_ordered = True
-        order.status = 'Accepted'
-        order.save()
+            cart_items = list(CartItem.objects.filter(user=current_user, is_active=True).select_related('product'))
+            if not cart_items:
+                messages.error(request, 'Your basket is empty.')
+                return redirect('store')
 
-        # Save each cart item as an OrderProduct and reduce stock
-        cart_items = CartItem.objects.filter(user=current_user)
-        for item in cart_items:
-            order_product = OrderProduct()
-            order_product.order = order
-            order_product.payment = payment
-            order_product.user = current_user
-            order_product.product = item.product
-            order_product.quantity = item.quantity
-            order_product.product_price = item.product.price
-            order_product.ordered = True
-            order_product.save()
+            payment = Payment.objects.create(
+                user=current_user,
+                payment_id='COD-' + order_number,
+                payment_method='Cash on Delivery',
+                amount_paid=str(order.order_total),
+                status='Pending',
+            )
 
-            item_variations = item.variations.all()
-            order_product.variation.set(item_variations)
-            order_product.save()
+            for item in cart_items:
+                # A conditional update cannot take stock below zero, even if two orders race for the last unit.
+                taken = Product.objects.filter(
+                    pk=item.product_id, is_available=True, stock__gte=item.quantity
+                ).update(stock=F('stock') - item.quantity)
+                if not taken:
+                    raise OutOfStock(item.product)
 
-            # Reduce stock
-            product = item.product
-            product.stock -= item.quantity
-            product.save()
+                order_product = OrderProduct.objects.create(
+                    order=order,
+                    payment=payment,
+                    user=current_user,
+                    product=item.product,
+                    quantity=item.quantity,
+                    product_price=item.product.price,
+                    ordered=True,
+                )
+                order_product.variation.set(item.variations.all())
 
-        # Clear the cart
-        CartItem.objects.filter(user=current_user).delete()
+            order.payment = payment
+            order.is_ordered = True
+            order.status = 'Accepted'
+            order.save()
+            CartItem.objects.filter(user=current_user).delete()
+    except OutOfStock as exc:
+        messages.error(request, f'Sorry, there is not enough stock left of {exc.product.product_name}. Your order was not placed.')
+        return redirect('cart')
 
-        messages.success(
-            request,
-            f'Your order #{order_number} has been placed! Our team will contact you to confirm delivery.'
-        )
-        return render(request, 'orders/order_complete.html', {'order': order})
-
-    return redirect('store')
+    messages.success(
+        request,
+        f'Your order #{order_number} has been placed! Our team will contact you to confirm delivery.'
+    )
+    return render(request, 'orders/order_complete.html', {'order': order})

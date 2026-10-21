@@ -1,7 +1,6 @@
 from .forms import RegistrationForm
 from .models import Account
-from carts.views import _cart_id
-from carts.models import Cart, CartItem
+from carts.views import _cart_id, merge_session_cart
 
 from django.shortcuts import render, redirect
 from django.contrib import messages, auth
@@ -10,12 +9,22 @@ from django.contrib.auth.decorators import login_required
 # Email Verification
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode, url_has_allowed_host_and_scheme
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 from django.utils.encoding import force_bytes
 from urllib.parse import urlparse, parse_qs
 
+
+
+def _free_username(email):
+    """The part of the address before the @, with a number added when someone already has it."""
+    base = email.split('@')[0][:40] or 'user'
+    username, n = base, 1
+    while Account.objects.filter(username=username).exists():
+        n += 1
+        username = f'{base}{n}'
+    return username
 
 
 def register(request):
@@ -27,7 +36,7 @@ def register(request):
             phone_number = form.cleaned_data['phone_number']
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            username = email.split("@")[0]
+            username = _free_username(email)
     
             user = Account.objects.create_user(first_name=first_name, last_name=last_name, email=email, username=username, password=password)
             user.phone_number = phone_number
@@ -62,53 +71,16 @@ def login(request):
         user = auth.authenticate(request, email=email, password=password)
         
         if user is not None:
-            try:
-                cart = Cart.objects.get(cart_id=_cart_id(request))
-                is_cart_item_exists = CartItem.objects.filter(cart=cart).exists()
-                if is_cart_item_exists:
-                    cart_item = CartItem.objects.filter(cart=cart)
-                    
-                    # Getting the product variations by cart id
-                    product_variation = []
-                    for item in cart_item:
-                        variation = item.variations.all()
-                        product_variation.append(list(variation))   
-                        
-                    # Get the cart items from the user to access his product variations
-                    cart_item = CartItem.objects.filter(user=user)
-                    ex_var_list = []
-                    id = []
-                    for item in cart_item:
-                        existing_variation = item.variations.all()
-                        ex_var_list.append(list(existing_variation))
-                        id.append(item.id)
-                        
-                    for pr in product_variation:
-                        if pr in ex_var_list:
-                            index = ex_var_list.index(pr)
-                            item_id = id[index]
-                            item = CartItem.objects.get(id=item_id)
-                            item.quantity += 1
-                            item.user = user
-                            item.save() 
-                        else:
-                            cart_item = CartItem.objects.filter(cart=cart)
-                            for item in cart_item:
-                                item.user = user
-                                item.save()                
-                    
-            except Cart.DoesNotExist:
-                pass
+            # Must happen before auth.login, which changes the session key the visitor's basket is filed under.
+            merge_session_cart(_cart_id(request), user)
             auth.login(request, user)
             messages.success(request, 'Logged In Successfully')
-            url = request.META.get('HTTP_REFERER', '')
-            try:
-                parsed = urlparse(url)
-                params = parse_qs(parsed.query)
-                if 'next' in params:
-                    return redirect(params['next'][0])
-            except Exception:
-                pass
+            referer = request.META.get('HTTP_REFERER', '')
+            next_page = parse_qs(urlparse(referer).query).get('next', [''])[0]
+            # Only a page on this site: an address like https://elsewhere.example or //elsewhere.example is never followed.
+            if next_page and url_has_allowed_host_and_scheme(
+                    next_page, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+                return redirect(next_page)
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid Credentials')
@@ -150,10 +122,9 @@ def dashboard(request):
 
 def forgotPassword(request):
     if request.method == 'POST':
-        email = request.POST['email']
-        if Account.objects.filter(email=email).exists():
-            user = Account.objects.get(email__exact=email)
-            
+        email = request.POST.get('email', '')
+        user = Account.objects.filter(email__exact=email).first()
+        if user is not None:
             # Reset Password Email
             current_site = get_current_site(request)
             mail_subject = 'Reset Your Password'
@@ -163,15 +134,10 @@ def forgotPassword(request):
                 'uid': urlsafe_base64_encode(force_bytes(user.pk)),
                 'token': default_token_generator.make_token(user),
             })
-            to_email = email
-            send_email = EmailMessage(mail_subject, message, to=[to_email])
-            send_email.send()            
-            
-            messages.success(request, 'Password reset email has been sent to your email address')
-            return redirect('login')
-        else:
-            messages.error(request, 'Account does not exist')
-            return redirect('forgotPassword')
+            EmailMessage(mail_subject, message, to=[email]).send()
+        # The same answer for every address, so the form cannot be used to find out who has an account.
+        messages.success(request, 'If an account exists for that address, a password reset email has been sent.')
+        return redirect('login')
     return render(request, 'accounts/forgotPassword.html')
 
 def resetpassword_validate(request, uidb64, token):
@@ -196,9 +162,13 @@ def resetPassword(request):
         
         if password == confirm_password:
             uid = request.session.get('uid')
-            user = Account.objects.get(pk=uid)
+            user = Account.objects.filter(pk=uid).first() if uid else None
+            if user is None:
+                messages.error(request, 'This reset link is missing or has expired.')
+                return redirect('forgotPassword')
             user.set_password(password)
             user.save()
+            del request.session['uid']
             messages.success(request, 'Password reset successful')
             return redirect('login')
         else:
