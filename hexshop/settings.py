@@ -5,7 +5,9 @@ Production-ready configuration using python-decouple for environment variables.
 
 from pathlib import Path
 import os
+import sys
 from decouple import config, Csv
+from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -13,8 +15,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ─── SECURITY ────────────────────────────────────────────────────────────────
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Debug is off unless it is switched on. A missing SECRET_KEY is only accepted in
+# development and in the test runner; a real deployment must fail loudly instead of
+# starting with a key that anyone who has read this file knows.
+DEBUG = config('DEBUG', default=False, cast=bool)
+SECRET_KEY = config('SECRET_KEY', default='')
+if not SECRET_KEY:
+    if DEBUG or 'test' in sys.argv:
+        SECRET_KEY = 'development-only-key-not-a-secret'
+    else:
+        raise ImproperlyConfigured('SECRET_KEY is not set. Set it in the environment.')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
 

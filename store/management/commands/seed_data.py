@@ -2,6 +2,7 @@
 Management command to seed the database with professional sample data.
 Idempotent: safe to run multiple times on every deploy.
 """
+from decouple import config
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from category.models import Category
@@ -412,17 +413,24 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('✓ Database seeding complete!'))
 
     def _seed_superuser(self):
-        if not Account.objects.filter(is_superadmin=True).exists():
-            Account.objects.create_superuser(
-                first_name='Admin',
-                last_name='HEX',
-                username='hexadmin',
-                email='admin@hexshop.com',
-                password='HexShop@2024',
-            )
-            self.stdout.write('  Created superuser: admin@hexshop.com / HexShop@2024')
-        else:
+        # The admin account comes from the environment only. No credential lives in the
+        # code, and a deployment without both variables simply has no admin account.
+        email = config('ADMIN_EMAIL', default='')
+        password = config('ADMIN_PASSWORD', default='')
+        if not email or not password:
+            self.stdout.write('  ADMIN_EMAIL and ADMIN_PASSWORD are not both set: no admin account created.')
+            return
+        if Account.objects.filter(is_superadmin=True).exists():
             self.stdout.write('  Superuser already exists.')
+            return
+        Account.objects.create_superuser(
+            first_name='Admin',
+            last_name='HEX',
+            username=email.split('@')[0],
+            email=email,
+            password=password,
+        )
+        self.stdout.write(f'  Created superuser: {email}')
 
     def _seed_categories(self):
         self.stdout.write('Seeding categories...')
